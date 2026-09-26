@@ -1,0 +1,31 @@
+# Supabase ücretsiz projesi 7 gün kullanılmazsa uyur.
+# Bu görev 3 günde bir veritabanını dürter ve depoya küçük bir not yazar
+# (GitHub da 60 gün hareketsiz depolarda zamanlanmış görevleri durdurduğu için).
+name: Veritabanını uyanık tut
+on:
+  schedule:
+    - cron: "17 6 */3 * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  durt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Supabase'i dürt
+        run: |
+          URL=$(grep -oE 'url: *"[^"]+"' config.js | sed -E 's/.*"([^"]+)"/\1/')
+          KEY=$(grep -oE 'key: *"[^"]+"' config.js | sed -E 's/.*"([^"]+)"/\1/')
+          code=$(curl -s -o /tmp/out -w '%{http_code}' -X POST "$URL/rest/v1/rpc/nabiz" \
+            -H "apikey: $KEY" -H "Content-Type: application/json" -d '{}')
+          echo "Yanıt: $code $(cat /tmp/out)"
+          test "$code" = "200"
+      - name: Depoyu canlı tut
+        run: |
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > .son-durtme
+          git config user.name "yakit-bot"
+          git config user.email "yakit-bot@users.noreply.github.com"
+          git add .son-durtme
+          git commit -m "Veritabanı dürtüldü" || true
+          git push
